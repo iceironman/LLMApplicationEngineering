@@ -1,7 +1,5 @@
 # LLMApplicationEngineering
 Bridge LLM Demo to Enterprise Production | 大模型企业落地与应用工程化实战体系
-LLM-Application-Engineering
-Bridge LLM Demo to Enterprise Production | 大模型企业落地与应用工程化实战体系
 ✅ Focus on business closed-loop, engineering delivery, organizational capability iteration
 ✅ Solve the pain point of "demo is the end" in enterprise LLM projects
 ✅ Take FDE (Forward Deployed Engineer) perspective to realize sustainable value delivery
