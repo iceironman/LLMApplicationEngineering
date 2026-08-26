@@ -319,7 +319,9 @@ AI‑as‑Judge（裁判模型）：使用另外一个独立大模型充当“�
 
 # 5.评估流水线工程实现
 把评估嵌入 CI/CD 流水线，每次改动 Prompt、知识库、模型版本，自动运行离线评测集，输出评估报告。这是从"手动看看效果"到"工程化质量保障"的关键跨越。
-
+<div align="center">
+<img width="640" height="360" alt="image" src="https://github.com/user-attachments/assets/8fae0863-6b2f-42c1-8bce-dabf4782196c" />
+</div>
 ## 5.1CI集成离线回归流水线
 触发条件：
 - Prompt 模板版本变更；
