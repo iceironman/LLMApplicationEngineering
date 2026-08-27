@@ -515,7 +515,9 @@ assert:
 **每个指标可加 `not-` 前缀取反**（如 `not-contains`、`not-is-refusal`、`not-trajectory:goal-success`）；但 `not-` 只反转真实判定结果，若法官/传输出错仍按失败处理。
 
 
-# 2.项目安装与启动
+# 2.业务场景评估方案
+>基于本地源码（`src/types/index.ts`、`src/assertions/index.ts`、`src/redteam/plugins.ts`、`src/redteam/graders.ts`）与官方文档整理。
+>适用于四个核心业务场景：业务 Prompt 迭代回归、RAG 知识库评测、Agent 原型评估、上线前红队安全测试，并配套 CI 流水线自动评估。
 
 
 
