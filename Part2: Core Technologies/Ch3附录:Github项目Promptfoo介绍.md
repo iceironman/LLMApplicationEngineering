@@ -517,7 +517,272 @@ assert:
 
 # 2.业务场景评估方案
 >基于本地源码（`src/types/index.ts`、`src/assertions/index.ts`、`src/redteam/plugins.ts`、`src/redteam/graders.ts`）与官方文档整理。
->适用于四个核心业务场景：业务 Prompt 迭代回归、RAG 知识库评测、Agent 原型评估、上线前红队安全测试，并配套 CI 流水线自动评估。
+>适用于五个核心业务场景：业务 Prompt 迭代回归、RAG 知识库评测、Agent 原型评估、上线前红队安全测试，并配套 CI 流水线自动评估。
+## 2.1场景一：业务 Prompt 迭代回归测试
+**目标**：每次修改 Prompt（措辞、few-shot、格式要求）后，验证输出质量不下降、关键要求不丢失。
 
+### 推荐指标
+| 指标                                                     | 类型      | 评估方法                                                            |
+| ------------------------------------------------------ | ------- | --------------------------------------------------------------- |
+| `contains` / `icontains`                               | 确定性文本匹配 | 校验输出必须包含/不包含指定关键词（大小写敏感/不敏感），适合校验"必须提到退款政策"等硬性要求                |
+| `regex`                                                | 确定性     | 校验输出匹配/不匹配正则，适合校验编号格式、日期格式、禁止词                                  |
+| `equals` / `is-json` / `is-valid-openai-function-call` | 确定性     | 校验输出与期望完全一致；校验 JSON 结构合法性                                       |
+| `similar`                                              | 语义相似度   | 与 golden 答案做 embedding 相似度（默认阈值 0.8），用 `threshold` 调节，适合开放型回答回归 |
+| `llm-rubric`                                           | 模型分级    | 用 LLM 当裁判，`rubric` 中写业务要求："回答应包含...，且不出现...，得分 1-5"，适合复杂业务规则    |
+| `g-eval`                                               | 模型分级    | 按 `criteria`（如相关性/准确性/连贯性）生成 CoT 打分，适合多维度质量回归                   |
+| `assert-set`                                           | 组合断言    | `contains` + `llm-rubric` 组合，任一失败即失败，一套用例覆盖硬性+软性要求              |
+| `not-*` 前缀                                             | 取反      | 如 `not-contains`，校验"不得出现竞品名、不得泄露内部代号"                           |
 
+推荐配置示例
+```yaml
+prompts:
+  - prompt.txt          # 旧版本（基线）
+  - prompt_v2.txt       # 新版本（候选）
+
+providers:
+  - openai:gpt-4o-mini
+
+tests:
+  - vars:
+      question: 客户要求退款但已过质保期
+    assert:
+      - type: contains
+        value: 质保政策
+      - type: not-contains
+        value: 全额退款
+      - type: llm-rubric
+        value: 回复应礼貌解释质保条款，并提供替代方案（优惠券），不得承诺无条件退款
+        threshold: 3
+      - type: similar
+        value: 很抱歉，根据质保政策无法全额退款，但可提供 8 折优惠券
+        threshold: 0.7
+```
+**关键参数**
+- `--filter-failing` / `--filter-failing-only`：只重跑失败用例（Prompt 迭代时快速验证修复是否生效）
+- `--resume`：断点续跑
+- `--max-concurrency`：控制并行，避免 API 限流
+- `--no-cache`：回归时建议关闭缓存，保证数据新鲜
+- 将新旧两个 Prompt 放同一配置对比，用结果表直接看 diff
+## 2.2场景二：RAG 知识库系统评测
+
+**目标**：评测检索（Retrieval）+ 生成（Generation）全链路质量：是否召回正确答案、上下文是否相关、回答是否忠实于知识库、是否答非所问。
+
+### 推荐指标
+| 指标                     | 类型        | 评估方法                                         | 说明         |
+| ---------------------- | --------- | -------------------------------------------- | ---------- |
+| `context-recall`       | RAG（模型分级） | 用 LLM 判断参考答案中的每个关键信息点是否都能在检索到的 `context` 中找到 | 检索覆盖率，越高越好 |
+| `context-relevance`    | RAG（模型分级） | 用 LLM 判断检索到的每个 context 片段是否与问题相关（无关片段比例越低越好） | 检索精确率      |
+| `context-faithfulness` | RAG（模型分级） | 用 LLM 判断回答中的每句话是否都能由 context 支撑（有无幻觉）        | 生成忠实度      |
+| `answer-relevance`     | RAG（模型分级） | 判断回答与问题的相关性（与正确答案、预期答案对比）                    | 回答相关性      |
+| `factuality`           | 模型分级      | 用 `subset` 判断题答案引用的事实是否与参考答案一致               | 事实性一致性     |
+| `llm-rubric`           | 模型分级      | 综合裁判：是否引用来源、格式是否符合（引用 [1][2] 等）              | 业务级规则      |
+| `similar`              | 语义相似度     | 与知识库标准答案对比                                   | 快速回归基线     |
+
+### 推荐配置示例
+```yaml
+prompts:
+  - file://prompts/rag_prompt.txt
+
+providers:
+  - openai:gpt-4o
+
+# 通过 contextTransform 注入检索结果（或用 context 变量）
+tests:
+  - vars:
+      question: 公司的年假政策是什么？
+      context: |-
+        根据《员工手册》第 3.2 条，入职满一年的员工享有 10 天带薪年假。
+        根据《员工手册》第 3.3 条，年假需提前 5 个工作日申请。
+    assert:
+      - type: context-recall
+        value: 员工手册第 3.2 条规定入职满一年享 10 天带薪年假
+        threshold: 0.7
+      - type: context-relevance
+        threshold: 0.8
+      - type: context-faithfulness
+        threshold: 0.9      # 忠实度要求最高，严防幻觉
+      - type: answer-relevance
+        threshold: 0.8
+      - type: llm-rubric
+        value: 回答必须明确引用知识库来源编号，未提及的不允许作答
+```
+### 评测策略
+
+- **检索独立评测**：固定生成 Prompt，只替换 context（真实检索结果 vs 正确上下文 vs 噪声上下文），量化 `context-recall`/`context-relevance`，定位是检索还是生成的问题
+- **对抗性用例**：加入"知识库中没有答案"的用例，校验模型应回答"不知道"而非编造（用 `llm-rubric` 判定）
+- **Golden 集**：沉淀 100~500 条业务问答对作为回归基线
+## 2.3场景三：Agent 原型系统评估
+
+**目标**：评估 Agent 的工具调用是否正确、轨迹是否合理、步骤是否过多、最终目标是否达成、执行时间/错误是否可控。
+### 推荐指标
+| 指标                           | 类型       | 评估方法                    | 说明      |
+| ---------------------------- | -------- | ----------------------- | ------- |
+| `trajectory:tool-used`       | 轨迹（确定性）  | 断言 Agent 是否调用了指定工具      | 工具使用正确性 |
+| `trajectory:tool-args-match` | 轨迹（模型分级） | 用 LLM 判断工具调用参数是否符合预期    | 参数正确性   |
+| `trajectory:tool-sequence`   | 轨迹（模型分级） | 用 LLM 判断工具调用顺序是否符合预期工作流 | 流程正确性   |
+| `trajectory:step-count`      | 轨迹（确定性）  | 断言步数 ≤ N，防止 Agent 空转    | 效率控制    |
+| `trajectory:goal-success`    | 轨迹（模型分级） | 用 LLM 判断最终是否达成用户目标      | 任务成功率   |
+| `trace:span-count`           | 追踪（确定性）  | 断言 span 数量范围            | 规模控制    |
+| `trace:span-duration`        | 追踪（确定性）  | 断言单 span/总耗时上限          | 延迟控制    |
+| `trace:error-spans`          | 追踪（确定性）  | 断言失败 span 数量为 0         | 稳定性     |
+| `tool-call-f1`               | 工具调用     | 工具名 + 参数与 golden 对比算 F1 | 工具调用质量  |
+| `skill-used`                 | 技能       | 断言是否使用了指定技能             | 技能路由正确性 |
+| `llm-rubric`                 | 模型分级     | 综合裁判：是否在合理步数内优雅处理异常     | 兜底业务规则  |
+### 推荐配置
+```yaml
+prompts:
+  - file://prompts/agent_wrapper.txt
+
+providers:
+  - openai:gpt-4o
+
+defaultTest:
+  assert:
+    - type: trajectory:step-count
+      max: 6
+    - type: trace:span-duration
+      max: 30000        # 总耗时不超过 30s
+
+tests:
+  - vars:
+      task: 帮用户查询订单号 1024 的物流状态，并预测送达日期
+    assert:
+      - type: trajectory:tool-used
+        value: query_order
+      - type: trajectory:tool-sequence
+        value: [query_order, predict_eta]
+      - type: trajectory:goal-success
+        value: 用户订单状态已查询，且给出了送达日期预测
+      - type: tool-call-f1
+        value:
+          - { tool: query_order, args: { order_id: 1024 } }
+      - type: trace:error-spans
+        max: 0
+```
+### 评测策略
+
+- 用 **`conversation` 断言系列**（如 `conversation:contains-tool-call`、`conversation:has-approval`、`conversation:stops-with-action`）评测多轮对话型 Agent 的交互行为
+- 配合 trace 视图（`promptfoo eval --trace`）人工复核失败轨迹
+- 为每个关键工作流沉淀 1 条 golden 轨迹，作为回归基线
+## 2.4场景四：上线前红队安全测试
+
+**目标**：模拟攻击，验证模型是否会被越狱、泄露系统提示词/敏感数据、产生有害/偏见/违规内容，覆盖 OWASP LLM Top 10。
+
+### 推荐指标
+
+使用 `promptfoo redteam run` 内置插件体系，**无需手写用例**：
+| 插件类别      | 代表插件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 评估方法（grader 判定"是否被攻破"）             |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 默认安全集     | `harmful:hate`、`harmful:violent`、`harmful:self-harm`、`harmful:sexual`、`harmful:harassment`、`harmful:discrimination`、`harmful:cybercrime`、`harmful:chemical-biological-weapons`、`harmful:illegal-activities`、`harmful:child-exploitation`、`harmful:profanity`、`harmful:insults`、`harmful:misinformation-disinformation`、`harmful:graphic-content`、`harmful:unsafe-practices`、`harmful:radicalization`、`harmful:privacy-violations`、`harmful:copyright-violations`、`harmful:child-sexual-abuse` | LLM grader 按专用 rubric 判定模型是否产出违规内容 |
+| 越狱/注入     | `jailbreak`（含 leetspeak/增强变体）、`indirect-prompt-injection`、`prompt-extraction`、`direct-prompt-injection`、`tool-disclosure`、`sandbox-escape`、`meta-prompt-extraction`、`debug-access`                                                                                                                                                                                                                                                                                                            | 判定是否泄露系统提示词/被注入指令劫持                |
+| 数据泄露（PII） | `pii:direct`、`pii:indirect`、`pii:session`、`pii:api`、`pii:social`、`pii:health`、`pii:credit-card`、`pii:bank-account`、`pii:driver-license`、`pii:passport`、`pii:phone`、`pii:address`、`pii:email`、`pii:username`、`pii:password`、`pii:secret-keys`、`pii:ip`、`pii:name`、`pii:physical`、`pii:financial`                                                                                                                                                                                               | 判定是否生成/拼接出真实 PII 样本                |
+| 偏见        | `bias:stereotype-agreement`、`bias:political`、`bias:religion`、`bias:age`、`bias:gender`、`bias:nationality`、`bias:sexual-orientation`、`bias:disability`、`bias:physical-appearance`、`bias:socioeconomic`                                                                                                                                                                                                                                                                                          | 判定是否强化刻板印象/歧视性表述                   |
+| 对抗性       | `overreliance`、`hallucination`、`politics`、`bomb`、`dan`、`exaggerated-safety`、`misleading-information`、`religious`                                                                                                                                                                                                                                                                                                                                                                              | 判定幻觉、过度依赖、规避安全机制等                  |
+| 行业垂直      | `sql-injection`、`xss`、`shell-injection`、`code-execution`、`excessive-agency`、`prompt-extraction`、`harmful:offensive-trolling`（金融/医疗/编程等场景插件）                                                                                                                                                                                                                                                                                                                                                   | 针对代码生成、工具调用等特定风险面                  |
+
+### 推荐配置示例
+```yaml
+# redteam.yaml
+description: 上线前安全基线
+prompts:
+  - file://prompts/production_prompt.txt
+providers:
+  - openai:gpt-4o
+
+plugins:
+  - harmful:all            # 全部有害内容子类
+  - pii:all                # 全部 PII 子类
+  - bias:all               # 全部偏见子类
+  - jailbreak
+  - indirect-prompt-injection
+  - prompt-extraction
+
+policies:
+  - prompt-injection: {{message}}  # 注入到系统提示词的自定义策略
+```
+### 执行与门槛
+```bash
+promptfoo redteam run --config redteam.yaml   # 生成测试集并执行
+promptfoo redteam report                      # 生成攻击向量与失败详情报告
+promptfoo redteam generate --update           # 仅重新生成（不重跑）
+```
+- **验收门槛**：在 CI 中设置 `PROMPTFOO_PASS_RATE_THRESHOLD`（如 95%），即红队用例 95% 以上未被攻破才放行
+- **持续红队**：每次上线前跑一次；新插件随 promptfoo 升级自动加入，保证覆盖面
+- 对攻破的向量，用 `promptfoo redteam report` 查看攻击样本与 grader 理由，迭代加固
+## 2.5 CI流水线自动评估（评估驱动开发）
+**目标**：把上面四个场景的评估固化进 CI，每次提交/合并请求自动执行，质量不达标即阻断发布。
+
+### 关键机制
+| 机制                              | 说明                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 退出码                             | `0` = 全部通过；`100` = 存在失败断言（未达门槛）；`1` = 运行出错（配置/网络）。CI 直接依赖退出码判定                                          |
+| `PROMPTFOO_PASS_RATE_THRESHOLD` | 环境变量设置整体通过率下限（如 `90`），低于则退出码 100                                                                        |
+| `--tag`                         | 按 `--tag` 过滤测试，可在同一配置中区分「快速回归集」与「完整集」                                                                   |
+| `--filter-failing`              | CI 失败后仅重跑失败用例，缩短调试迭代                                                                                    |
+| `--no-cache`                    | 保证每次 CI 用真实模型结果，不用旧缓存                                                                                   |
+| 输出格式                            | `-o junit.xml`（对接 Jenkins/GitLab CI）、`-o sarif.json`（对接 GitHub Code Scanning/安全扫描）、`-o markdown`（PR 评论） |
+### 推荐流水线（GitHub Actions 示例）
+```yaml
+name: promptfoo-eval
+on: [pull_request, push]
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm install -g promptfoo
+
+      - name: 业务 Prompt 回归
+        run: promptfoo eval --config regression.yaml --tag fast
+        env:
+          PROMPTFOO_PASS_RATE_THRESHOLD: 90
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: RAG 评测
+        run: promptfoo eval --config rag.yaml --tag fast
+        env:
+          PROMPTFOO_PASS_RATE_THRESHOLD: 85
+
+      - name: Agent 轨迹评测
+        run: promptfoo eval --config agent.yaml --tag fast
+        env:
+          PROMPTFOO_PASS_RATE_THRESHOLD: 80
+
+      - name: 红队安全测试（仅 main / 发布前）
+        if: github.ref == 'refs/heads/main'
+        run: promptfoo redteam run --config redteam.yaml
+        env:
+          PROMPTFOO_PASS_RATE_THRESHOLD: 95
+
+      - name: 上传结果
+        if: always()
+        run: |
+          promptfoo eval --config regression.yaml -o junit.xml
+          promptfoo eval --config regression.yaml -o sarif.json
+        continue-on-error: true
+```
+### 分层策略（评估驱动开发）
+
+1. **PR 门禁（快集）**：`--tag fast`，几百条用例，覆盖各场景关键指标，3~5 分钟，阻断合并
+2. **夜间完整集（慢集）**：全量用例 + 完整红队，跑完生成 `junit.xml` + 报告归档，次日跟进
+3. **上线前硬门禁**：完整集 + 红队通过率 ≥ 95%，未达标阻断发布
+4. **失败回归循环**：CI 失败 → 本地 `promptfoo eval --filter-failing` 复现 → 改 Prompt/加用例 → 重提 PR
+5. **用例即资产**：线上质量问题反哺为测试用例，加入 golden 集，形成质量飞轮
+## 2.6指标选用速查表
+| 业务诉求       | 首选指标                                                | 兜底/辅助                      |
+| ---------- | --------------------------------------------------- | -------------------------- |
+| 关键词/格式硬性要求 | `contains` / `regex` / `equals`                     | `is-json`                  |
+| 开放回答质量回归   | `similar` / `g-eval`                                | `llm-rubric`               |
+| 检索召回够不够    | `context-recall`                                    | `context-relevance`        |
+| 会不会幻觉      | `context-faithfulness`                              | `factuality`               |
+| 工具调用对不对    | `trajectory:tool-args-match` / `tool-call-f1`       | `trajectory:tool-used`     |
+| 任务达没达成     | `trajectory:goal-success`                           | `llm-rubric`               |
+| 会不会越狱/泄露   | 红队插件（`jailbreak` / `prompt-extraction` / `pii:all`） | `harmful:all`              |
+| 上线门槛       | CI 退出码 + `PROMPTFOO_PASS_RATE_THRESHOLD`            | `junit.xml` / `sarif.json` |
 
