@@ -786,3 +786,8 @@ jobs:
 | 会不会越狱/泄露   | 红队插件（`jailbreak` / `prompt-extraction` / `pii:all`） | `harmful:all`              |
 | 上线门槛       | CI 退出码 + `PROMPTFOO_PASS_RATE_THRESHOLD`            | `junit.xml` / `sarif.json` |
 
+# 3.实际运行
+<div align="center">
+<img width="1412" height="897" alt="image" src="https://github.com/user-attachments/assets/c2f1eb2e-130c-4835-a8cb-613cdd420571" />
+<img width="1124" height="523" alt="image" src="https://github.com/user-attachments/assets/98bb21c2-3f1b-4667-adcf-9f5f92e72dea" />
+</div>
