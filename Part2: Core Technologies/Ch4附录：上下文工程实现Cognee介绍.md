@@ -1,4 +1,7 @@
 # 1.项目介绍
+
+<img width="9798" height="4296" alt="how-does-ai-memory-work-gray" src="https://github.com/user-attachments/assets/ee8d14fd-d35e-4cd2-bd3f-6562eeb33814" />
+
 项目地址：[https://www.zdoc.app/zh/topoteretes/cognee](https://www.zdoc.app/zh/topoteretes/cognee)
 定位：**开源 AI 记忆平台，用来落地上下文工程范式**；不再手动拼接 prompt 字符串，由平台完成记忆摄入、知识图谱构建、动态检索、上下文组装、会话管理，把上下文工程的理论变成可运行代码。
 前置理论回顾：上下文工程核心，系统化管理送入模型上下文窗口全部信息；包含系统指令、检索知识、对话历史、工具结果、示例、输出约束；在有限 Token 预算，最大化信息密度与相关性。Cognee 就是这套思想的开源工程实现。
