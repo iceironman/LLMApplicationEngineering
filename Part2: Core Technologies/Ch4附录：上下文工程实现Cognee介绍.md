@@ -123,3 +123,5 @@ qixin@qixin:~/llama.cpp$ ./build/bin/llama-server -m ./models/Qwen3-Embedding-0.
 ```
 **验证：向量维度默认1024**
 <img width="974" height="891" alt="image" src="https://github.com/user-attachments/assets/40f0ca28-87be-4d4a-94a8-46ba1cd14a5c" />
+
+
