@@ -123,5 +123,31 @@ qixin@qixin:~/llama.cpp$ ./build/bin/llama-server -m ./models/Qwen3-Embedding-0.
 ```
 **验证：向量维度默认1024**
 <img width="974" height="891" alt="image" src="https://github.com/user-attachments/assets/40f0ca28-87be-4d4a-94a8-46ba1cd14a5c" />
+## 4.2 cognee基本功能测试
+### 4.2.1 配置cognee环境参数.env
+**和cognee同级建一个cognee_work目录，在这个目录下用uv初始化虚拟环境**
+LLM模型、EMBEDDING模型、向量数据库和图数据库。
+```
+LLM_PROVIDER=openai
+LLM_MODEL="openai/any"
+LLM_ENDPOINT="http://127.0.0.1:8080/v1"
+LLM_API_KEY=sk‑dummy
 
+EMBEDDING_PROVIDER="openai_compatible"
+EMBEDDING_MODEL="Qwen3‑Embedding‑0.6B"
+EMBEDDING_ENDPOINT="http://127.0.0.1:8081/v1"
+EMBEDDING_API_KEY=sk‑dummy
+EMBEDDING_DIMENSIONS=1024
+
+VECTOR_DB_PROVIDER=turso
+GRAPH_DATABASE_PROVIDER="networkx"
+
+REQUIRE_AUTHENTICATION=false
+ENABLE_BACKEND_ACCESS_CONTROL=false
+```
+修改.env参数后要，清除原理的cognee环境
+```bash
+rm -rf ~/.cognee
+```
+### 4.2.2 安装cognee
 
