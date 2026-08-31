@@ -126,7 +126,7 @@ qixin@qixin:~/llama.cpp$ ./build/bin/llama-server -m ./models/Qwen3-Embedding-0.
 ## 4.2 cognee基本功能测试
 ### 4.2.1 配置cognee环境参数.env
 **和cognee同级建一个cognee_work目录，在这个目录下用uv初始化虚拟环境**
-LLM模型、EMBEDDING模型、向量数据库和图数据库。
+LLM模型[Qwen3-0.6B-Q8_0.gguf]、EMBEDDING[Qwen3-Embedding-0.6B]模型、向量数据库[turso]和图数据库[networkx]。
 ```
 LLM_PROVIDER=openai
 LLM_MODEL="openai/any"
