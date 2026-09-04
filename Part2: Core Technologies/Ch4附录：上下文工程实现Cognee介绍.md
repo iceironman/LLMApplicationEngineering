@@ -1,7 +1,7 @@
 ls# 1.项目介绍
-
+<div dig="center">
 <img width="9798" height="4296" alt="how-does-ai-memory-work-gray" src="https://github.com/user-attachments/assets/ee8d14fd-d35e-4cd2-bd3f-6562eeb33814" />
-
+</div>
 项目地址：[https://www.zdoc.app/zh/topoteretes/cognee](https://www.zdoc.app/zh/topoteretes/cognee)
 
 定位：**开源 AI 记忆平台，用来落地上下文工程范式**；不再手动拼接 prompt 字符串，由平台完成记忆摄入、知识图谱构建、动态检索、上下文组装、会话管理，把上下文工程的理论变成可运行代码。
@@ -62,6 +62,9 @@ Cognee 采用三类存储协同工作，本地开发可以完全嵌入式运行�
 删除记忆；支持按数据集、会话清除，实现记忆生命周期管理。
 > 对应上下文工程：清理过期上下文数据。
 # 4.Cognee实战
+<div dig="center">
+<img width="640" height="320" alt="cognee部署图" src="https://github.com/user-attachments/assets/7a0c9cc5-d5ff-4206-86e9-5188f404fcf7" />
+</div>
 ## 4.1启动llama.cpp服务
 服务端版本：0.1.1-dev
 ```bash
@@ -124,7 +127,14 @@ qixin@qixin:~/llama.cpp$ ./build/bin/llama-server -m ./models/Qwen3-Embedding-0.
 **验证：向量维度默认1024**
 <img width="974" height="891" alt="image" src="https://github.com/user-attachments/assets/40f0ca28-87be-4d4a-94a8-46ba1cd14a5c" />
 ## 4.2 cognee基本功能测试
-### 4.2.1 配置cognee环境参数.env
+### 4.2.1 安装cognee
+**将cognee项目clone到本地**
+```
+git https://github.com/topoteretes/cognee.git
+mkdir cognee_work
+```
+**将cognee_work目录下的.env.template文件拷贝到cognee_work目录下，文件名改为.env**
+### 4.2.2 配置cognee环境参数.env
 **和cognee同级建一个cognee_work目录，在这个目录下用uv初始化虚拟环境**
 LLM模型[Qwen3-0.6B-Q8_0.gguf]、EMBEDDING[Qwen3-Embedding-0.6B]模型、向量数据库[turso]和图数据库[networkx]。
 ```
@@ -149,5 +159,5 @@ ENABLE_BACKEND_ACCESS_CONTROL=false
 ```bash
 rm -rf ~/.cognee
 ```
-### 4.2.2 安装cognee
+
 
