@@ -132,32 +132,141 @@ qixin@qixin:~/llama.cpp$ ./build/bin/llama-server -m ./models/Qwen3-Embedding-0.
 ```
 git https://github.com/topoteretes/cognee.git
 mkdir cognee_work
+uv pip install -e .\cognee#导入cognee依赖包
 ```
 **将cognee_work目录下的.env.template文件拷贝到cognee_work目录下，文件名改为.env**
 ### 4.2.2 配置cognee环境参数.env
 **和cognee同级建一个cognee_work目录，在这个目录下用uv初始化虚拟环境**
 LLM模型[Qwen3-0.6B-Q8_0.gguf]、EMBEDDING[Qwen3-Embedding-0.6B]模型、向量数据库[turso]和图数据库[networkx]。
 ```
-LLM_PROVIDER=openai
-LLM_MODEL="openai/any"
-LLM_ENDPOINT="http://127.0.0.1:8080/v1"
-LLM_API_KEY=sk‑dummy
+###############################################################################
+# TIER 1 — QUICK START
+# Set this one variable and you're done. Everything else has working defaults.
+# Default databases (SQLite, LanceDB, KuzuDB) are file-based, no setup needed.
+###############################################################################
+# llama.cpp 不校验 key，但 cognee 的 custom provider 要求非空，占位即可
+LLM_API_KEY="sk-local-llama"
 
-EMBEDDING_PROVIDER="openai_compatible"
-EMBEDDING_MODEL="Qwen3‑Embedding‑0.6B"
-EMBEDDING_ENDPOINT="http://127.0.0.1:8081/v1"
-EMBEDDING_API_KEY=sk‑dummy
-EMBEDDING_DIMENSIONS=1024
-
-VECTOR_DB_PROVIDER=turso
-GRAPH_DATABASE_PROVIDER="networkx"
-
-REQUIRE_AUTHENTICATION=false
+# 单用户本地部署：关闭多租户鉴权，避免 REQUIRE_AUTHENTICATION 被强制开启
 ENABLE_BACKEND_ACCESS_CONTROL=false
+
+# 跳过 LLM/embedding 连接预检（30s 超时对慢速 llama.cpp 偏短，端点可用性请
+# 自行用 curl http://192.168.1.39:8080/v1/models 与 .../8081/v1/models 验证）
+COGNEE_SKIP_CONNECTION_TEST=true
+
+
+###############################################################################
+# TIER 2 — COMMON OVERRIDES (uncomment to customize)
+# Most users only need a few of these.
+###############################################################################
+
+# -- LLM Provider & Model ----------------------------------------------------
+# llama.cpp 服务（OpenAI 兼容端点）。model 字段由服务端忽略，可保留占位。
+LLM_MODEL="openai/local-llm"
+LLM_PROVIDER="custom"
+LLM_ENDPOINT="http://192.168.1.39:8080/v1"
+EMBEDDING_PROVIDER="openai_compatible"
+EMBEDDING_MODEL="Qwen3-Embedding-0.6B"
+EMBEDDING_ENDPOINT="http://192.168.1.39:8081/v1"
+EMBEDDING_API_KEY=sk-dumy
+EMBEDDING_DIMENSIONS=1024
+HUGGINGFACE_TOKENIZER="Qwen/Qwen3-Embedding-0.6B"
 ```
 修改.env参数后要，清除原理的cognee环境
 ```bash
 rm -rf ~/.cognee
 ```
+### 4.2.3 cognee测试
+测试cognee的remember和recall接口
+```python
+"""
+最简单的 cognee 端到端冒烟测试：
+    remember()  把一段文字写入知识库（切块 -> LLM 实体/关系抽取 -> 图 -> 向量化）
+    recall()    基于该知识检索问答
 
+配置来源：本目录下的 .env（llama.cpp LLM 192.168.1.39:8080，embedding 192.168.1.39:8081）。
+
+运行方法（先确保 cognee 已安装，例如：pip install -e ..\\cognee）：
+    cd d:/032-Cognee/cognee_work
+    python test_cognee.py
+"""
+
+import asyncio
+import traceback
+from pathlib import Path
+
+import dotenv
+
+# 显式加载本文件同目录的 .env，避免工作目录不同导致读不到配置
+dotenv.load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
+
+import cognee  # noqa: E402
+from cognee import SearchType  # noqa: E402
+
+# 重复运行同一 dataset 会重复入库，需要彻底清空时放开下一行
+# await cognee.forget(everything=True)
+
+SAMPLE_TEXT = """\
+Natural language processing (NLP) is an interdisciplinary subfield of
+computer science and information retrieval. NLP helps machines understand,
+interpret and generate human language.
+"""
+
+
+def print_config() -> None:
+    """打印 .env 实际生效的关键配置，方便确认是否走 llama.cpp。"""
+    from cognee.infrastructure.databases.vector.embeddings.config import (
+        get_embedding_config,
+    )
+    from cognee.infrastructure.llm.config import get_llm_config
+
+    llm = get_llm_config()
+    emb = get_embedding_config()
+
+    print("[config]")
+    print(f"  LLM       : model={llm.llm_model!r} provider={llm.llm_provider!r} endpoint={llm.llm_endpoint!r}")
+    print(f"  Embedding : model={emb.embedding_model!r} provider={emb.embedding_provider!r} "
+          f"dims={emb.embedding_dimensions!r} endpoint={emb.embedding_endpoint!r}")
+
+
+async def main() -> None:
+    print_config()
+
+    # 1) 入库：add + cognify（切块、LLM 抽取、构图、向量化）
+    print("\n[1/2] remember() ...")
+    result = await cognee.remember(
+        SAMPLE_TEXT,
+        dataset_name="smoke_test",
+        self_improvement=False,  # 最小化 LLM 调用，只测主链路
+    )
+    print(f"  remember done -> {type(result).__name__}")
+
+    # 2) 检索：基于刚才的知识回答
+    print("\n[2/2] recall() ...")
+    answers = await cognee.recall(
+        query_text="What is NLP?",
+        query_type=SearchType.GRAPH_COMPLETION,
+        datasets=["smoke_test"],
+    )
+
+    if not answers:
+        print("  recall returned no results.")
+        return
+
+    for i, item in enumerate(answers[:3], 1):
+        text = getattr(item, "text", None) or str(item)
+        print(f"  --- answer {i} ---")
+        print(f"  {text}")
+
+    print("\nSUCCESS: cognee smoke test passed.")
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except Exception:
+        traceback.print_exc()
+        raise SystemExit("\n测试失败，请检查上面的错误与 .env 配置。")
+
+```
 
