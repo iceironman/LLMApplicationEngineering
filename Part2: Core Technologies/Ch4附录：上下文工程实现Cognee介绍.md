@@ -152,7 +152,7 @@ ENABLE_BACKEND_ACCESS_CONTROL=false
 
 # 跳过 LLM/embedding 连接预检（30s 超时对慢速 llama.cpp 偏短，端点可用性请
 # 自行用 curl http://192.168.1.39:8080/v1/models 与 .../8081/v1/models 验证）
-COGNEE_SKIP_CONNECTION_TEST=true
+COGNEE_SKIP_CONNECTION_TEST=true #本地模型反应慢，不做连通性测试
 
 
 ###############################################################################
@@ -269,4 +269,118 @@ if __name__ == "__main__":
         raise SystemExit("\n测试失败，请检查上面的错误与 .env 配置。")
 
 ```
+**输出**
+```log
+2026-09-04T01:35:35.234402 [info     ] Log file created at: C:\Users\qixin\.cognee\logs\2026-09-04_09-35-35.log [cognee.shared.logging_utils] log_file=C:\Users\qixin\.cognee\logs\2026-09-04_09-35-35.log
 
+2026-09-04T01:35:35.234838 [warning  ] Cognee 1.0 changes: New API — remember/recall/forget/improve (V1 add/cognify/search still work). Session memory enabled by default (CACHING=false to disable). Multi-user access control on by default (ENABLE_BACKEND_ACCESS_CONTROL=false to disable). Agents (@cognee.agent) auto-verified on registration. See https://docs.cognee.ai/ [cognee.shared.logging_utils]
+
+2026-09-04T01:35:35.235554 [info     ] Logging initialized            [cognee.shared.logging_utils] cognee_version=1.5.3-local database_path=D:\032-Cognee\cognee\cognee\.cognee_system\databases os_info='Windows 11 (10.0.26200)' python_version=3.14.3 structlog_version=25.5.0
+
+2026-09-04T01:35:35.235764 [info     ] Database storage: D:\032-Cognee\cognee\cognee\.cognee_system\databases [cognee.shared.logging_utils]
+
+2026-09-04T01:35:35.677570 [warning  ] REQUIRE_AUTHENTICATION=false is incompatible with ENABLE_BACKEND_ACCESS_CONTROL=true: multi-tenant mode requires authentication. Forcing REQUIRE_AUTHENTICATION=true. To disable auth for a single-user deployment, also set ENABLE_BACKEND_ACCESS_CONTROL=false. [get_authenticated_user]
+
+2026-09-04T01:35:35.678048 [info     ] auth posture: authentication=required, multi_tenant=enabled (forced on by multi-tenant mode (REQUIRE_AUTHENTICATION=false was ignored)) [get_authenticated_user]
+[config]
+  LLM       : model='openai/local-llm' provider='custom' endpoint='http://192.168.1.39:8080/v1'
+  Embedding : model='Qwen3-Embedding-0.6B' provider='openai_compatible' dims=1024 endpoint='http://192.168.1.39:8081/v1'
+
+[1/2] remember() ...
+
+setup plugin alembic.autogenerate.schemas
+
+setup plugin alembic.autogenerate.tables
+
+setup plugin alembic.autogenerate.types
+
+setup plugin alembic.autogenerate.constraints
+
+setup plugin alembic.autogenerate.defaults
+
+setup plugin alembic.autogenerate.comments
+
+setup plugin alembic.autogenerate.checkconstraint_byname
+
+Using database: sqlite+aiosqlite:///D:\032-Cognee\cognee\cognee\.cognee_system\databases/cognee_db
+
+Context impl SQLiteImpl.      
+
+Will assume non-transactional DDL.
+
+Relational migrations applied (target head).
+
+2026-09-04T01:35:39.536243 [info     ] Skipping LLM/embedding connection tests (COGNEE_SKIP_CONNECTION_TEST is set). [cognee.shared.logging_utils]
+
+2026-09-04T01:35:40.024654 [info     ] Log file created at: C:\Users\qixin\.cognee\logs\2026-09-04_09-35-35.log [cognee.shared.logging_utils] log_file=C:\Users\qixin\.cognee\logs\2026-09-04_09-35-35.log
+
+2026-09-04T01:35:40.024959 [warning  ] Cognee 1.0 changes: New API — remember/recall/forget/improve (V1 add/cognify/search still work). Session memory enabled by default (CACHING=false to disable). Multi-user access control on by default (ENABLE_BACKEND_ACCESS_CONTROL=false to disable). Agents (@cognee.agent) auto-verified on registration. See https://docs.cognee.ai/ [cognee.shared.logging_utils]
+
+2026-09-04T01:35:40.025197 [info     ] Logging initialized            [cognee.shared.logging_utils] cognee_version=1.5.3-local database_path=D:\032-Cognee\cognee\cognee\.cognee_system\databases os_info='Windows 11 (10.0.26200)' python_version=3.14.3 structlog_version=25.5.0
+
+2026-09-04T01:35:40.025453 [info     ] Database storage: D:\032-Cognee\cognee\cognee\.cognee_system\databases [cognee.shared.logging_utils]
+
+2026-09-04T01:35:40.029119 [warning  ] Could not load a matching tokenizer for embedding model 'Qwen3-Embedding-0.6B' (No module named 'transformers'). Falling back to TikToken, so token counts are approximate. Token counts drive chunk sizing and the --dry-run estimate, so a tokenizer that does not match the embedding model will mis-size chunks. Set HUGGINGFACE_TOKENIZER to a tokenizer matching your embedding model to fix this. [tokenizer_resolver]
+
+2026-09-04T01:35:41.385091 [info     ] Pipeline run started: `a75de8a6-f247-5864-9015-c879f14686e3` [run_tasks_with_telemetry()]
+
+2026-09-04T01:35:41.415197 [info     ] Coroutine task started: `classify_documents` [run_tasks_base]
+
+2026-09-04T01:35:41.451964 [info     ] Async Generator task started: `extract_chunks_from_documents` [run_tasks_base]
+
+2026-09-04T01:35:41.499374 [info     ] Coroutine task started: `extract_graph_and_summarize` [run_tasks_base]
+
+2026-09-04T01:44:41.421526 [info     ] Coroutine task started: `add_data_points` [run_tasks_base]
+
+2026-09-04T01:44:41.459423 [info     ] Completed graph extraction for DataPoint [cognee.shared.logging_utils] extra={'datapoint_id': 'c4637ee7-dd73-4f03-8fff-84835d884a02', 'nodes_extracted': 1, 'edges_extracted': 0}
+
+2026-09-04T01:44:41.463995 [info     ] Completed graph extraction for DataPoint [cognee.shared.logging_utils] extra={'datapoint_id': 'd5c177cd-9a7c-50ae-b191-10e1dc7d810b', 'nodes_extracted': 1, 'edges_extracted': 0}
+
+2026-09-04T01:44:41.464283 [info     ] Completed graph extraction for DataPoint [cognee.shared.logging_utils] extra={'datapoint_id': 'db1bf137-6f81-57fb-8018-e903894d30e7', 'nodes_extracted': 2, 'edges_extracted': 2}
+
+2026-09-04T01:44:41.464494 [info     ] Completed graph extraction for DataPoint [cognee.shared.logging_utils] extra={'datapoint_id': 'da330436-aafa-526c-a301-8a18c07eb21c', 'nodes_extracted': 4, 'edges_extracted': 4}
+
+2026-09-04T01:44:41.464753 [info     ] Completed graph extraction for DataPoint [cognee.shared.logging_utils] extra={'datapoint_id': 'f37c541f-7c43-50d6-b742-e47281cc5002', 'nodes_extracted': 5, 'edges_extracted': 5}
+
+2026-09-04T01:45:04.188667 [info     ] Coroutine task completed: `add_data_points` [run_tasks_base]
+
+2026-09-04T01:45:04.216254 [info     ] Coroutine task completed: `extract_graph_and_summarize` [run_tasks_base]
+
+2026-09-04T01:45:04.245672 [info     ] Async Generator task completed: `extract_chunks_from_documents` [run_tasks_base]
+
+2026-09-04T01:45:04.276715 [info     ] Coroutine task completed: `classify_documents` [run_tasks_base]
+
+2026-09-04T01:45:04.306980 [info     ] Pipeline run completed: `a75de8a6-f247-5864-9015-c879f14686e3` [run_tasks_with_telemetry()]
+  remember done -> RememberResult
+
+[2/2] recall() ...#开始召回
+
+2026-09-04T01:45:04.415371 [info     ] query_router: no patterns matched, default=HYBRID_COMPLETION query='What is NLP?' [query_router]
+
+2026-09-04T01:45:04.415860 [info     ] Router override recorded: routed=HYBRID_COMPLETION, user_chose=GRAPH_COMPLETION (total=1) [query_router]
+
+2026-09-04T01:45:07.037612 [info     ] Vector collection retrieval completed: Retrieved distances from 6 collections in 0.48s [cognee.shared.logging_utils]
+
+2026-09-04T01:45:07.037956 [info     ] Retrieving ID-filtered graph from database. [CogneeGraph]
+
+2026-09-04T01:45:07.053074 [info     ] ID-filtered retrieval: 5 nodes and 5 edges in 0.01s [cognee.shared.logging_utils]
+
+2026-09-04T01:45:07.054330 [info     ] Graph projection completed: 5 nodes, 5 edges in 0.00s [CogneeGraph]
+
+2026-09-04T01:45:07.054878 [info     ] Completed resolving edges to text [cognee.shared.logging_utils] extra={'node_count': 5, 'connection_count': 5}
+
+2026-09-04T01:45:36.539567 [warning  ] Concurrent turn analysis failed open:  [session_concurrent_turn]
+
+2026-09-04T01:50:49.516824 [info     ] recall: 1 results across sources=['graph'] (session=-) [recall]
+  --- answer 1 ---
+  NLP is an interdisciplinary subfield of computer science and information retrieval, supporting machine understanding, interpretation, and generation of human language.
+
+SUCCESS: cognee smoke test passed.##测试工通过
+
+Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x0000029EAA1B5160>
+
+Unclosed connector
+connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x0000029EEE591F90>, 7563.2680702)])']
+connector: <aiohttp.connector.TCPConnector object at 0x0000029EAA1B52B0>
+```
